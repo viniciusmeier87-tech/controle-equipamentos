@@ -52,16 +52,13 @@
   <!-- PAINEL -->
   <section id="sec-dashboard" class="section active" role="tabpanel">
     <div class="stats" id="stats-cards"></div>
-
-    <!-- Alertas de calibração -->
     <div id="alerta-calibracao" class="card alerta-card" style="display:none;">
       <div class="card-title" style="color:var(--red);">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        Alertas de calibração
+        Alertas
       </div>
       <div id="alerta-list"></div>
     </div>
-
     <div class="card">
       <div class="card-title">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -150,7 +147,7 @@
           <thead>
             <tr>
               <th>Equipamento</th><th>Projeto</th><th>Técnico</th><th>Responsável</th>
-              <th>Saída</th><th>Devolução</th><th>Dias</th><th>Ensaios realizados</th><th>Status</th><th></th>
+              <th>Saída</th><th>Devolução</th><th>Dias</th><th>Checklist</th><th>Ensaios</th><th>Status</th><th></th>
             </tr>
           </thead>
           <tbody id="hist-tbody"></tbody>
@@ -162,7 +159,6 @@
   <!-- CADASTROS -->
   <section id="sec-cadastro" class="section" role="tabpanel">
     <div class="cadastro-grid">
-      <!-- Equipamentos -->
       <div class="card" style="margin-bottom:0;">
         <div class="card-title">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2z"/><path d="M7 7h.01"/></svg>
@@ -180,8 +176,6 @@
         </div>
         <div id="equip-list" class="cad-list"></div>
       </div>
-
-      <!-- Funcionários -->
       <div class="card" style="margin-bottom:0;">
         <div class="card-title">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -199,7 +193,7 @@
 
 <!-- MODAL DEVOLUÇÃO -->
 <div id="modal-overlay" class="modal-overlay" onclick="closeModal(event)">
-  <div class="modal" role="dialog" aria-modal="true">
+  <div class="modal modal-lg" role="dialog" aria-modal="true">
     <div class="modal-header">
       <h2>Registrar devolução</h2>
       <button class="modal-close" onclick="fecharModal()">
@@ -208,12 +202,150 @@
     </div>
     <div class="modal-body">
       <div class="modal-equip" id="modal-equip-info"></div>
-      <div class="form-group" style="margin-top:1rem;">
-        <label for="dev-ensaios">Ensaios replicados realizados <span class="req">*</span></label>
-        <textarea id="dev-ensaios" rows="4" placeholder="Descreva os ensaios replicados realizados durante o uso do equipamento..."></textarea>
-        <span class="field-hint">Campo obrigatório para confirmar a devolução.</span>
+
+      <!-- CHECKLIST -->
+      <div class="checklist-section">
+        <div class="checklist-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          Checklist de recebimento
+        </div>
+
+        <!-- Equipamento Limpo -->
+        <div class="chk-item">
+          <div class="chk-question">
+            <span class="chk-label">Equipamento Limpo</span>
+            <div class="chk-options">
+              <label class="radio-pill sim"><input type="radio" name="chk-limpo" value="sim" onchange="onChecklistChange('limpo','sim')" /> Sim</label>
+              <label class="radio-pill nao"><input type="radio" name="chk-limpo" value="nao" onchange="onChecklistChange('limpo','nao')" /> Não</label>
+            </div>
+          </div>
+          <div class="modal-error" id="err-limpo" style="display:none;">Selecione uma opção.</div>
+          <textarea id="just-limpo" class="just-textarea" placeholder="Justifique o motivo do equipamento estar sujo..." style="display:none;" rows="2"></textarea>
+        </div>
+
+        <!-- Funcionando -->
+        <div class="chk-item">
+          <div class="chk-question">
+            <span class="chk-label">Funcionando</span>
+            <div class="chk-options">
+              <label class="radio-pill sim"><input type="radio" name="chk-funcionando" value="sim" onchange="onChecklistChange('funcionando','sim')" /> Sim</label>
+              <label class="radio-pill nao"><input type="radio" name="chk-funcionando" value="nao" onchange="onChecklistChange('funcionando','nao')" /> Não</label>
+            </div>
+          </div>
+          <div class="modal-error" id="err-funcionando" style="display:none;">Selecione uma opção.</div>
+          <textarea id="just-funcionando" class="just-textarea" placeholder="Descreva o problema de funcionamento..." style="display:none;" rows="2"></textarea>
+        </div>
+
+        <!-- Kit Completo -->
+        <div class="chk-item">
+          <div class="chk-question">
+            <span class="chk-label">Kit Completo</span>
+            <div class="chk-options">
+              <label class="radio-pill sim"><input type="radio" name="chk-kit" value="sim" onchange="onChecklistChange('kit','sim')" /> Sim</label>
+              <label class="radio-pill nao"><input type="radio" name="chk-kit" value="nao" onchange="onChecklistChange('kit','nao')" /> Não</label>
+            </div>
+          </div>
+          <div class="modal-error" id="err-kit" style="display:none;">Selecione uma opção.</div>
+          <textarea id="just-kit" class="just-textarea" placeholder="Informe o que está faltando no kit..." style="display:none;" rows="2"></textarea>
+        </div>
       </div>
-    </div>
+
+      <!-- ENSAIOS — MP -->
+      <div id="ensaios-mp-section" class="checklist-section" style="display:none;margin-top:1rem;">
+        <div class="checklist-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2v-4M9 21H5a2 2 0 0 1-2-2v-4m0 0h18"/></svg>
+          Ensaios replicados (MP) <span class="req">*</span>
+          <span class="chk-hint">Todos os ensaios são obrigatórios</span>
+        </div>
+        <div id="mp-ensaios-list">
+          <!-- pH -->
+          <div class="chk-item">
+            <div class="chk-question">
+              <span class="chk-label">pH</span>
+              <div class="chk-options">
+                <label class="radio-pill sim"><input type="radio" name="mp-ph" value="sim" onchange="onMpEnsaio('ph','sim')" /> Sim</label>
+                <label class="radio-pill nao"><input type="radio" name="mp-ph" value="nao" onchange="onMpEnsaio('ph','nao')" /> Não</label>
+              </div>
+            </div>
+            <div class="modal-error" id="err-mp-ph" style="display:none;">Selecione uma opção.</div>
+            <textarea id="just-mp-ph" class="just-textarea" placeholder="Justifique por que o ensaio de pH não foi realizado..." style="display:none;" rows="2"></textarea>
+          </div>
+          <!-- ORP -->
+          <div class="chk-item">
+            <div class="chk-question">
+              <span class="chk-label">ORP</span>
+              <div class="chk-options">
+                <label class="radio-pill sim"><input type="radio" name="mp-orp" value="sim" onchange="onMpEnsaio('orp','sim')" /> Sim</label>
+                <label class="radio-pill nao"><input type="radio" name="mp-orp" value="nao" onchange="onMpEnsaio('orp','nao')" /> Não</label>
+              </div>
+            </div>
+            <div class="modal-error" id="err-mp-orp" style="display:none;">Selecione uma opção.</div>
+            <textarea id="just-mp-orp" class="just-textarea" placeholder="Justifique por que o ensaio de ORP não foi realizado..." style="display:none;" rows="2"></textarea>
+          </div>
+          <!-- Condutividade -->
+          <div class="chk-item">
+            <div class="chk-question">
+              <span class="chk-label">Condutividade</span>
+              <div class="chk-options">
+                <label class="radio-pill sim"><input type="radio" name="mp-condutividade" value="sim" onchange="onMpEnsaio('condutividade','sim')" /> Sim</label>
+                <label class="radio-pill nao"><input type="radio" name="mp-condutividade" value="nao" onchange="onMpEnsaio('condutividade','nao')" /> Não</label>
+              </div>
+            </div>
+            <div class="modal-error" id="err-mp-condutividade" style="display:none;">Selecione uma opção.</div>
+            <textarea id="just-mp-condutividade" class="just-textarea" placeholder="Justifique por que o ensaio de Condutividade não foi realizado..." style="display:none;" rows="2"></textarea>
+          </div>
+          <!-- OD -->
+          <div class="chk-item">
+            <div class="chk-question">
+              <span class="chk-label">OD</span>
+              <div class="chk-options">
+                <label class="radio-pill sim"><input type="radio" name="mp-od" value="sim" onchange="onMpEnsaio('od','sim')" /> Sim</label>
+                <label class="radio-pill nao"><input type="radio" name="mp-od" value="nao" onchange="onMpEnsaio('od','nao')" /> Não</label>
+              </div>
+            </div>
+            <div class="modal-error" id="err-mp-od" style="display:none;">Selecione uma opção.</div>
+            <textarea id="just-mp-od" class="just-textarea" placeholder="Justifique por que o ensaio de OD não foi realizado..." style="display:none;" rows="2"></textarea>
+          </div>
+          <!-- Temperatura -->
+          <div class="chk-item">
+            <div class="chk-question">
+              <span class="chk-label">Temperatura</span>
+              <div class="chk-options">
+                <label class="radio-pill sim"><input type="radio" name="mp-temperatura" value="sim" onchange="onMpEnsaio('temperatura','sim')" /> Sim</label>
+                <label class="radio-pill nao"><input type="radio" name="mp-temperatura" value="nao" onchange="onMpEnsaio('temperatura','nao')" /> Não</label>
+              </div>
+            </div>
+            <div class="modal-error" id="err-mp-temperatura" style="display:none;">Selecione uma opção.</div>
+            <textarea id="just-mp-temperatura" class="just-textarea" placeholder="Justifique por que o ensaio de Temperatura não foi realizado..." style="display:none;" rows="2"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- ENSAIOS — outros equipamentos (Sim/Não geral) -->
+      <div id="ensaios-geral-section" class="checklist-section" style="display:none;margin-top:1rem;">
+        <div class="checklist-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Ensaios replicados realizados <span class="req">*</span>
+        </div>
+        <div class="chk-item" style="border:none;padding:0;">
+          <div class="chk-question">
+            <span class="chk-label">Foram realizados?</span>
+            <div class="chk-options">
+              <label class="radio-pill sim"><input type="radio" name="ensaios-flag" value="sim" onchange="onEnsaiosFlag('sim')" /> Sim</label>
+              <label class="radio-pill nao"><input type="radio" name="ensaios-flag" value="nao" onchange="onEnsaiosFlag('nao')" /> Não</label>
+            </div>
+          </div>
+          <div class="modal-error" id="err-ensaios" style="display:none;">Selecione uma opção.</div>
+          <div id="ensaios-sim-area" style="display:none;margin-top:8px;">
+            <textarea id="dev-ensaios" rows="3" placeholder="Descreva os ensaios replicados realizados..."></textarea>
+          </div>
+          <div id="ensaios-nao-area" style="display:none;margin-top:8px;">
+            <textarea id="dev-ensaios-just" rows="3" placeholder="Justifique por que os ensaios não foram realizados..."></textarea>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- fim modal-body -->
     <div class="modal-footer">
       <button class="btn secondary" onclick="fecharModal()">Cancelar</button>
       <button class="btn primary" onclick="confirmarDevolucao()">Confirmar devolução</button>
@@ -243,7 +375,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn secondary" onclick="fecharEditModal()">Cancelar</button>
-      <button class="btn primary" onclick="confirmarEdicao()">Salvar alteração</button>
+      <button class="btn primary" onclick="confirmarEdicao()">Salvar</button>
     </div>
   </div>
 </div>
