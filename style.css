@@ -187,3 +187,11 @@ input.error-field, select.error-field, textarea.error-field { border-color: var(
   .cadastro-grid { grid-template-columns: 1fr; }
   h1 { font-size: 16px; }
 }
+
+/* ALERTAS CALIBRAÇÃO */
+.alerta-card { border-color: #fca5a5; background: #fff5f5; }
+.alerta-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #fee2e2; gap: 8px; flex-wrap: wrap; }
+.alerta-item:last-child { border-bottom: none; }
+.alerta-item.vencido .chip { background: var(--red-light); color: var(--red); }
+.alerta-item.alerta .chip { background: var(--amber-light); color: var(--amber); }
+
