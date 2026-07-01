@@ -147,7 +147,7 @@ input.error-field, select.error-field, textarea.error-field { border-color: var(
 .empty { text-align: center; padding: 2.5rem 1rem; color: var(--gray-400); font-size: 13px; }
 
 /* CADASTROS */
-.cadastro-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; align-items: start; }
+.cadastro-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; align-items: start; }
 .cad-add-row { display: flex; gap: 8px; margin-bottom: 1rem; }
 .cad-list { display: flex; flex-direction: column; gap: 2px; max-height: 420px; overflow-y: auto; }
 .cad-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--gray-100); background: var(--gray-50); gap: 8px; }
