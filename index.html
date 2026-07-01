@@ -384,11 +384,13 @@
 <script src="app.js"></script>
 <script>
   if ('serviceWorker' in navigator) {
+    // Remove qualquer service worker antigo primeiro
+    navigator.serviceWorker.getRegistrations().then(regs => {
+      regs.forEach(reg => reg.unregister());
+    });
+    // Registra o novo SW minimo
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js').then(reg => {
-        // Verifica atualização toda vez que o app abre
-        reg.update();
-      });
+      navigator.serviceWorker.register('sw.js');
     });
   }
 </script>
