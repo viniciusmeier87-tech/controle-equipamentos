@@ -201,6 +201,14 @@
       </div>
     </div>
 
+    <div class="card">
+      <div class="card-title">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Quantidade de trocas por padrão
+      </div>
+      <div id="mrc-resumo" class="stats"></div>
+    </div>
+
     <div class="card" style="margin-bottom:0;border-bottom-left-radius:0;border-bottom-right-radius:0;border-bottom:none;">
       <div class="filter-row">
         <div class="search-bar" style="flex:1;min-width:200px;margin-bottom:0;">
@@ -208,6 +216,7 @@
           <input type="text" id="mrc-search" placeholder="Buscar por responsável..." oninput="renderMrcHistorico()" />
         </div>
         <select id="mrc-filt-padrao" onchange="renderMrcHistorico()"><option value="">Todos os padrões</option></select>
+        <button class="btn secondary small" onclick="gerarPdfMrc()">Gerar PDF</button>
       </div>
     </div>
     <div class="card table-card">
@@ -252,6 +261,17 @@
           <button class="btn primary small" onclick="addFuncionario()">Adicionar</button>
         </div>
         <div id="func-list" class="cad-list"></div>
+      </div>
+      <div class="card" style="margin-bottom:0;">
+        <div class="card-title">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 2v6.5L4.5 17a2 2 0 0 0 1.8 3h11.4a2 2 0 0 0 1.8-3L15 8.5V2"/><path d="M9 2h6"/><path d="M8.5 13h7"/></svg>
+          Responsáveis (Padrões MRC)
+        </div>
+        <div class="cad-add-row">
+          <input type="text" id="resp-input" placeholder="Nome do responsável" style="flex:1;" />
+          <button class="btn primary small" onclick="addResponsavel()">Adicionar</button>
+        </div>
+        <div id="resp-list" class="cad-list"></div>
       </div>
     </div>
   </section>
@@ -447,6 +467,8 @@
 </div>
 
 <div class="toast" id="toast" role="alert" aria-live="polite"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="app.js"></script>
 <script>
   if ('serviceWorker' in navigator) {
