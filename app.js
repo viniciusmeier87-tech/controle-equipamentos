@@ -113,20 +113,33 @@ function setLoading(on) {
   document.getElementById('loading-bar').style.display = on ? 'block' : 'none';
 }
 
+function updateSyncIndicator() {
+  const el = document.getElementById('sync-time');
+  if (!el) return;
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,'0');
+  const mm = String(now.getMinutes()).padStart(2,'0');
+  el.textContent = `Sincronizado às ${hh}:${mm}`;
+}
+
 function populateSelectEquip(id) {
   const el = document.getElementById(id);
   if (!el) return;
+  const cur = el.value;
   const sorted = equipamentos.slice().sort((a,b) => a.codigo.localeCompare(b.codigo));
   el.innerHTML = sorted.map(e => {
     const bloq = equipBloqueado(e.codigo);
     return `<option value="${e.codigo}" ${bloq ? 'disabled' : ''}>${e.codigo}${bloq ? ' 🔒 calibração vencida' : ''}</option>`;
   }).join('');
+  if (sorted.some(e => e.codigo === cur)) el.value = cur;
 }
 
 function populateSelect(id, opts) {
   const el = document.getElementById(id);
   if (!el) return;
+  const cur = el.value;
   el.innerHTML = opts.map(o => `<option value="${o}">${o}</option>`).join('');
+  if (opts.includes(cur)) el.value = cur;
 }
 
 function refreshFormSelects() {
@@ -160,6 +173,17 @@ function refreshHistoricoFilters() {
 }
 
 // ── Tab navigation ─────────────────────────────────────────────────────────────
+function renderActiveSection() {
+  const active = document.querySelector('.section.active');
+  if (!active) return;
+  const tab = active.id.replace('sec-', '');
+  if (tab === 'devolucao') filtrarEmUso();
+  if (tab === 'historico') renderHistorico();
+  if (tab === 'dashboard') renderDashboard();
+  if (tab === 'mrc')       renderMrcHistorico();
+  if (tab === 'cadastro')  renderCadastros();
+}
+
 function setTab(tab) {
   const order = ['dashboard','saida','devolucao','historico','mrc','cadastro'];
   document.querySelectorAll('.tab').forEach((el, i) => {
@@ -169,16 +193,12 @@ function setTab(tab) {
   });
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.getElementById('sec-' + tab).classList.add('active');
-  if (tab === 'devolucao') filtrarEmUso();
-  if (tab === 'historico') renderHistorico();
-  if (tab === 'dashboard') renderDashboard();
-  if (tab === 'mrc')       renderMrcHistorico();
-  if (tab === 'cadastro')  renderCadastros();
+  renderActiveSection();
 }
 
 // ── Load all ──────────────────────────────────────────────────────────────────
-async function loadAll() {
-  setLoading(true);
+async function loadAll(silent = false) {
+  if (!silent) setLoading(true);
   try {
     const [recs, equips, tecns, resps, mrc] = await Promise.all([
       sbGet('registros', 'order=created_at.desc'),
@@ -193,13 +213,14 @@ async function loadAll() {
     responsaveis = resps.map(r => r.nome);
     padroesMrc   = mrc;
     refreshFormSelects();
-    renderDashboard();
+    renderActiveSection();
     verificarNotificacoes();
+    updateSyncIndicator();
   } catch(e) {
-    showToast('Erro ao carregar dados. Verifique a conexão.', true);
+    if (!silent) showToast('Erro ao carregar dados. Verifique a conexão.', true);
     console.error(e);
   }
-  setLoading(false);
+  if (!silent) setLoading(false);
 }
 
 // ── Notificações ──────────────────────────────────────────────────────────────
@@ -774,10 +795,16 @@ function gerarPdfMrc() {
     styles: { fontSize: 9 }
   });
 
+  const ordenado = filtered.slice().sort((a, b) => {
+    const da = `${a.data_troca || ''}T${a.hora || '00:00'}`;
+    const db = `${b.data_troca || ''}T${b.hora || '00:00'}`;
+    return da.localeCompare(db);
+  });
+
   doc.autoTable({
     startY: doc.lastAutoTable.finalY + 10,
     head: [['Padrão', 'Data de troca', 'Hora', 'Responsável']],
-    body: filtered.map(r => [r.padrao, formatDate(r.data_troca), r.hora || '—', r.responsavel]),
+    body: ordenado.map(r => [r.padrao, formatDate(r.data_troca), r.hora || '—', r.responsavel]),
     theme: 'striped',
     headStyles: { fillColor: [37, 99, 235] },
     styles: { fontSize: 9 }
@@ -977,3 +1004,15 @@ document.getElementById('s-data').value = today();
 document.getElementById('mrc-data').value = today();
 document.getElementById('mrc-hora').value = currentTime();
 loadAll();
+
+// Sincronização automática: busca dados atualizados periodicamente para refletir
+// alterações feitas em outro computador, sem precisar recarregar a página.
+let syncInterval = setInterval(() => loadAll(true), 15000);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    clearInterval(syncInterval);
+  } else {
+    loadAll(true);
+    syncInterval = setInterval(() => loadAll(true), 15000);
+  }
+});
