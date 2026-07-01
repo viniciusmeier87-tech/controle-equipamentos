@@ -33,6 +33,7 @@ async function sbDelete(table, query) {
 let records       = [];
 let equipamentos  = [];
 let tecnicos      = [];
+let responsaveis  = [];
 let padroesMrc    = [];
 let modalRecordId = null;
 let editContext   = null;
@@ -131,7 +132,7 @@ function populateSelect(id, opts) {
 function refreshFormSelects() {
   populateSelectEquip('s-equip');
   populateSelect('s-tecnico', tecnicos.slice().sort());
-  populateSelect('mrc-responsavel', tecnicos.slice().sort());
+  populateSelect('mrc-responsavel', responsaveis.slice().sort());
   refreshHistoricoFilters();
   refreshMrcFilters();
 }
@@ -179,15 +180,17 @@ function setTab(tab) {
 async function loadAll() {
   setLoading(true);
   try {
-    const [recs, equips, tecns, mrc] = await Promise.all([
+    const [recs, equips, tecns, resps, mrc] = await Promise.all([
       sbGet('registros', 'order=created_at.desc'),
       sbGet('equipamentos', 'order=codigo.asc'),
       sbGet('tecnicos', 'order=nome.asc'),
+      sbGet('responsaveis', 'order=nome.asc'),
       sbGet('padroes_mrc', 'order=created_at.desc')
     ]);
     records      = recs;
     equipamentos = equips.map(e => ({ codigo: e.codigo, validade_calibracao: e.validade_calibracao || null }));
     tecnicos     = tecns.map(t => t.nome);
+    responsaveis = resps.map(r => r.nome);
     padroesMrc   = mrc;
     refreshFormSelects();
     renderDashboard();
@@ -619,7 +622,7 @@ function exportarCSV() {
 }
 
 // ── Cadastros ──────────────────────────────────────────────────────────────────
-function renderCadastros() { renderEquipList(); renderFuncList(); }
+function renderCadastros() { renderEquipList(); renderFuncList(); renderRespList(); }
 
 function renderEquipList() {
   const list = document.getElementById('equip-list');
@@ -708,6 +711,7 @@ async function registrarTrocaPadrao() {
 }
 
 function renderMrcHistorico() {
+  renderMrcResumo();
   const q = (document.getElementById('mrc-search')?.value || '').toLowerCase();
   const filtPadrao = document.getElementById('mrc-filt-padrao')?.value || '';
   const filtered = padroesMrc.filter(r =>
@@ -729,6 +733,60 @@ function renderMrcHistorico() {
     </tr>`).join('');
 }
 
+function renderMrcResumo() {
+  const el = document.getElementById('mrc-resumo');
+  if (!el) return;
+  el.innerHTML = PADROES_MRC.map(p => {
+    const count = padroesMrc.filter(r => r.padrao === p).length;
+    return `<div class="stat">
+      <div class="stat-label">${p}</div>
+      <div class="stat-value ${count === 0 ? '' : 'blue'}">${count}</div>
+    </div>`;
+  }).join('');
+}
+
+function gerarPdfMrc() {
+  if (!padroesMrc.length) { showToast('Nenhum registro para gerar PDF.', true); return; }
+  const { jsPDF } = window.jspdf || {};
+  if (!jsPDF) { showToast('Biblioteca de PDF não carregada. Verifique sua conexão.', true); return; }
+
+  const q = (document.getElementById('mrc-search')?.value || '').toLowerCase();
+  const filtPadrao = document.getElementById('mrc-filt-padrao')?.value || '';
+  const filtered = padroesMrc.filter(r =>
+    (!filtPadrao || r.padrao === filtPadrao) &&
+    (!q || (r.responsavel || '').toLowerCase().includes(q))
+  );
+
+  const doc = new jsPDF();
+  doc.setFontSize(14);
+  doc.text('Éllu Ambiental — Controle de Padrões MRC', 14, 16);
+  doc.setFontSize(10);
+  doc.setTextColor(100);
+  doc.text(`Gerado em ${formatDate(today())} às ${currentTime()}`, 14, 22);
+  if (filtPadrao) doc.text(`Filtro: ${filtPadrao}`, 14, 27);
+
+  doc.autoTable({
+    startY: filtPadrao ? 32 : 28,
+    head: [['Padrão', 'Qtd. de trocas']],
+    body: PADROES_MRC.map(p => [p, String(padroesMrc.filter(r => r.padrao === p).length)]),
+    theme: 'grid',
+    headStyles: { fillColor: [37, 99, 235] },
+    styles: { fontSize: 9 }
+  });
+
+  doc.autoTable({
+    startY: doc.lastAutoTable.finalY + 10,
+    head: [['Padrão', 'Data de troca', 'Hora', 'Responsável']],
+    body: filtered.map(r => [r.padrao, formatDate(r.data_troca), r.hora || '—', r.responsavel]),
+    theme: 'striped',
+    headStyles: { fillColor: [37, 99, 235] },
+    styles: { fontSize: 9 }
+  });
+
+  doc.save(`padroes_mrc_${today()}.pdf`);
+  showToast('PDF gerado.');
+}
+
 async function removerTrocaPadrao(id) {
   if (!confirm('Remover este registro?')) return;
   setLoading(true);
@@ -741,6 +799,51 @@ async function removerTrocaPadrao(id) {
   setLoading(false);
 }
 
+function renderRespList() {
+  const list = document.getElementById('resp-list');
+  const sorted = responsaveis.slice().sort();
+  if (!sorted.length) { list.innerHTML = '<div class="empty">Nenhum responsável cadastrado.</div>'; return; }
+  list.innerHTML = sorted.map(r => {
+    const hasRec = padroesMrc.some(m => m.responsavel === r);
+    return `<div class="cad-item">
+      <span class="cad-item-name">${r}</span>
+      ${hasRec ? '<span class="badge devolvido" style="font-size:10px;">Com registros</span>' : ''}
+      <div class="cad-actions">
+        <button class="btn-icon edit" title="Editar" onclick="abrirEdicao('resp','${r.replace(/'/g,"\\'")}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+        <button class="btn-icon del" title="Remover" onclick="removerResponsavel('${r.replace(/'/g,"\\'")}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function addResponsavel() {
+  const inp = document.getElementById('resp-input');
+  const val = inp.value.trim();
+  if (!val) { inp.classList.add('error-field'); showToast('Digite o nome.', true); return; }
+  if (responsaveis.some(r => r.toLowerCase() === val.toLowerCase())) { showToast(`${val} já cadastrado.`, true); return; }
+  setLoading(true);
+  try {
+    await sbPost('responsaveis', { nome: val });
+    responsaveis.push(val); refreshFormSelects(); renderRespList();
+    inp.value = ''; inp.classList.remove('error-field'); showToast(`${val} adicionado.`);
+  } catch(e) { showToast('Erro ao adicionar.', true); console.error(e); }
+  setLoading(false);
+}
+
+async function removerResponsavel(nome) {
+  if (padroesMrc.some(m => m.responsavel === nome)) { showToast(`${nome} possui registros de troca vinculados.`, true); return; }
+  if (!confirm(`Remover "${nome}"?`)) return;
+  setLoading(true);
+  try {
+    await sbDelete('responsaveis', `nome=eq.${encodeURIComponent(nome)}`);
+    responsaveis = responsaveis.filter(r => r !== nome); refreshFormSelects(); renderRespList(); showToast(`${nome} removido.`);
+  } catch(e) { showToast('Erro ao remover.', true); console.error(e); }
+  setLoading(false);
+}
 async function addEquipamento() {
   const inp = document.getElementById('equip-input');
   const val = inp.value.trim().toUpperCase();
@@ -798,8 +901,10 @@ async function removerFuncionario(nome) {
 // ── Modal edição ───────────────────────────────────────────────────────────────
 function abrirEdicao(type, oldValue) {
   editContext = { type, oldValue };
-  document.getElementById('edit-title').textContent = type === 'equip' ? 'Editar equipamento' : 'Editar técnico';
-  document.getElementById('edit-label').textContent = type === 'equip' ? 'Código do equipamento' : 'Nome do técnico';
+  const titles = { equip: 'Editar equipamento', func: 'Editar técnico', resp: 'Editar responsável' };
+  const labels = { equip: 'Código do equipamento', func: 'Nome do técnico', resp: 'Nome do responsável' };
+  document.getElementById('edit-title').textContent = titles[type] || 'Editar';
+  document.getElementById('edit-label').textContent = labels[type] || 'Valor';
   const inp = document.getElementById('edit-input');
   inp.value = oldValue; inp.classList.remove('error-field');
   const validadeRow = document.getElementById('edit-validade-row');
@@ -835,13 +940,20 @@ async function confirmarEdicao() {
       if (eq) { eq.codigo = newVal; eq.validade_calibracao = novaValidade; }
       records.forEach(r => { if (r.equipamento === oldValue) r.equipamento = newVal; });
       refreshFormSelects(); renderEquipList(); renderDashboard();
-    } else {
+    } else if (type === 'func') {
       if (tecnicos.some(t => t.toLowerCase() === newVal.toLowerCase() && t !== oldValue)) { showToast(`${newVal} já existe.`, true); setLoading(false); return; }
       await sbPatch('tecnicos', `nome=eq.${encodeURIComponent(oldValue)}`, { nome: newVal });
       await sbPatch('registros', `tecnico=eq.${encodeURIComponent(oldValue)}`, { tecnico: newVal });
       tecnicos = tecnicos.map(t => t === oldValue ? newVal : t);
       records.forEach(r => { if (r.tecnico === oldValue) r.tecnico = newVal; });
       refreshFormSelects(); renderFuncList();
+    } else if (type === 'resp') {
+      if (responsaveis.some(r => r.toLowerCase() === newVal.toLowerCase() && r !== oldValue)) { showToast(`${newVal} já existe.`, true); setLoading(false); return; }
+      await sbPatch('responsaveis', `nome=eq.${encodeURIComponent(oldValue)}`, { nome: newVal });
+      await sbPatch('padroes_mrc', `responsavel=eq.${encodeURIComponent(oldValue)}`, { responsavel: newVal });
+      responsaveis = responsaveis.map(r => r === oldValue ? newVal : r);
+      padroesMrc.forEach(m => { if (m.responsavel === oldValue) m.responsavel = newVal; });
+      refreshFormSelects(); renderRespList(); renderMrcHistorico();
     }
     fecharEditModal(); showToast('Atualizado com sucesso.');
   } catch(e) { showToast('Erro ao atualizar.', true); console.error(e); }
@@ -855,6 +967,7 @@ document.addEventListener('keydown', e => {
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('equip-input').addEventListener('keydown', e => { if (e.key === 'Enter') addEquipamento(); });
   document.getElementById('func-input').addEventListener('keydown', e => { if (e.key === 'Enter') addFuncionario(); });
+  document.getElementById('resp-input').addEventListener('keydown', e => { if (e.key === 'Enter') addResponsavel(); });
   document.getElementById('edit-input').addEventListener('keydown', e => { if (e.key === 'Enter') confirmarEdicao(); });
   pedirPermissaoNotificacao();
 });
