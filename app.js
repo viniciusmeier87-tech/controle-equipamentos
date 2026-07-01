@@ -33,8 +33,16 @@ async function sbDelete(table, query) {
 let records       = [];
 let equipamentos  = [];
 let tecnicos      = [];
+let padroesMrc    = [];
 let modalRecordId = null;
 let editContext   = null;
+
+const PADROES_MRC = [
+  'pH 1,70', 'pH 7,00', 'pH 12,00',
+  'ORP 229 mV', 'ORP 476 mV',
+  'Condutividade 100', 'Condutividade 500', 'Condutividade 1408',
+  'Oxigênio Dissolvido 0,00 mg/l'
+];
 
 // ── Calibração helpers ────────────────────────────────────────────────────────
 function diasParaVencer(validade) {
@@ -66,6 +74,7 @@ function equipBloqueado(codigo) {
 
 // ── Helpers gerais ────────────────────────────────────────────────────────────
 function today() { return new Date().toISOString().split('T')[0]; }
+function currentTime() { return new Date().toTimeString().slice(0,5); }
 
 function formatDate(d) {
   if (!d) return '—';
@@ -122,7 +131,18 @@ function populateSelect(id, opts) {
 function refreshFormSelects() {
   populateSelectEquip('s-equip');
   populateSelect('s-tecnico', tecnicos.slice().sort());
+  populateSelect('mrc-responsavel', tecnicos.slice().sort());
   refreshHistoricoFilters();
+  refreshMrcFilters();
+}
+
+function refreshMrcFilters() {
+  const f = document.getElementById('mrc-filt-padrao');
+  if (!f) return;
+  const cur = f.value;
+  f.innerHTML = '<option value="">Todos os padrões</option>' +
+    PADROES_MRC.map(p => `<option value="${p}">${p}</option>`).join('');
+  f.value = cur;
 }
 
 function refreshHistoricoFilters() {
@@ -140,7 +160,7 @@ function refreshHistoricoFilters() {
 
 // ── Tab navigation ─────────────────────────────────────────────────────────────
 function setTab(tab) {
-  const order = ['dashboard','saida','devolucao','historico','cadastro'];
+  const order = ['dashboard','saida','devolucao','historico','mrc','cadastro'];
   document.querySelectorAll('.tab').forEach((el, i) => {
     const active = order[i] === tab;
     el.classList.toggle('active', active);
@@ -151,6 +171,7 @@ function setTab(tab) {
   if (tab === 'devolucao') filtrarEmUso();
   if (tab === 'historico') renderHistorico();
   if (tab === 'dashboard') renderDashboard();
+  if (tab === 'mrc')       renderMrcHistorico();
   if (tab === 'cadastro')  renderCadastros();
 }
 
@@ -158,14 +179,16 @@ function setTab(tab) {
 async function loadAll() {
   setLoading(true);
   try {
-    const [recs, equips, tecns] = await Promise.all([
+    const [recs, equips, tecns, mrc] = await Promise.all([
       sbGet('registros', 'order=created_at.desc'),
       sbGet('equipamentos', 'order=codigo.asc'),
-      sbGet('tecnicos', 'order=nome.asc')
+      sbGet('tecnicos', 'order=nome.asc'),
+      sbGet('padroes_mrc', 'order=created_at.desc')
     ]);
     records      = recs;
     equipamentos = equips.map(e => ({ codigo: e.codigo, validade_calibracao: e.validade_calibracao || null }));
     tecnicos     = tecns.map(t => t.nome);
+    padroesMrc   = mrc;
     refreshFormSelects();
     renderDashboard();
     verificarNotificacoes();
@@ -652,6 +675,72 @@ function renderFuncList() {
   }).join('');
 }
 
+// ── Padrões MRC ──────────────────────────────────────────────────────────────
+function limparFormMrc() {
+  document.getElementById('mrc-data').value = today();
+  document.getElementById('mrc-hora').value = currentTime();
+  ['mrc-padrao','mrc-responsavel'].forEach(id => document.getElementById(id).classList.remove('error-field'));
+}
+
+async function registrarTrocaPadrao() {
+  const padrao      = document.getElementById('mrc-padrao').value;
+  const data_troca  = document.getElementById('mrc-data').value;
+  const hora        = document.getElementById('mrc-hora').value;
+  const responsavel = document.getElementById('mrc-responsavel').value;
+
+  ['mrc-data','mrc-hora','mrc-responsavel'].forEach(id => document.getElementById(id).classList.remove('error-field'));
+  let erros = [];
+  if (!data_troca)  { erros.push('Data de troca'); document.getElementById('mrc-data').classList.add('error-field'); }
+  if (!hora)         { erros.push('Hora'); document.getElementById('mrc-hora').classList.add('error-field'); }
+  if (!responsavel)  { erros.push('Responsável'); document.getElementById('mrc-responsavel').classList.add('error-field'); }
+  if (erros.length) { showToast('Preencha: ' + erros.join(', ') + '.', true); return; }
+
+  setLoading(true);
+  try {
+    const novo = { id: Date.now(), padrao, data_troca, hora, responsavel };
+    const [saved] = await sbPost('padroes_mrc', novo);
+    padroesMrc.unshift(saved);
+    renderMrcHistorico();
+    showToast(`Troca de ${padrao} registrada.`);
+    limparFormMrc();
+  } catch(e) { showToast('Erro ao registrar troca.', true); console.error(e); }
+  setLoading(false);
+}
+
+function renderMrcHistorico() {
+  const q = (document.getElementById('mrc-search')?.value || '').toLowerCase();
+  const filtPadrao = document.getElementById('mrc-filt-padrao')?.value || '';
+  const filtered = padroesMrc.filter(r =>
+    (!filtPadrao || r.padrao === filtPadrao) &&
+    (!q || (r.responsavel || '').toLowerCase().includes(q))
+  );
+  const tbody = document.getElementById('mrc-tbody');
+  if (!tbody) return;
+  if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty">Nenhum registro encontrado.</td></tr>'; return; }
+  tbody.innerHTML = filtered.map(r => `
+    <tr>
+      <td><span class="chip">${r.padrao}</span></td>
+      <td>${formatDate(r.data_troca)}</td>
+      <td>${r.hora || '—'}</td>
+      <td>${r.responsavel}</td>
+      <td><button class="btn-icon del" title="Remover" onclick="removerTrocaPadrao(${r.id})">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+      </button></td>
+    </tr>`).join('');
+}
+
+async function removerTrocaPadrao(id) {
+  if (!confirm('Remover este registro?')) return;
+  setLoading(true);
+  try {
+    await sbDelete('padroes_mrc', `id=eq.${id}`);
+    padroesMrc = padroesMrc.filter(r => r.id !== id);
+    renderMrcHistorico();
+    showToast('Registro removido.');
+  } catch(e) { showToast('Erro ao remover.', true); console.error(e); }
+  setLoading(false);
+}
+
 async function addEquipamento() {
   const inp = document.getElementById('equip-input');
   const val = inp.value.trim().toUpperCase();
@@ -772,4 +861,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ── Init ───────────────────────────────────────────────────────────────────────
 document.getElementById('s-data').value = today();
+document.getElementById('mrc-data').value = today();
+document.getElementById('mrc-hora').value = currentTime();
 loadAll();
