@@ -146,6 +146,13 @@ function refreshFormSelects() {
   populateSelectEquip('s-equip');
   populateSelect('s-tecnico', tecnicos.slice().sort());
   populateSelect('mrc-responsavel', responsaveis.slice().sort());
+  const respSel = document.getElementById('dev-responsavel');
+  if (respSel && document.getElementById('modal-overlay').classList.contains('open')) {
+    const cur = respSel.value;
+    respSel.innerHTML = '<option value="">Selecione...</option>' +
+      responsaveis.slice().sort().map(r => `<option value="${r}">${r}</option>`).join('');
+    if (responsaveis.includes(cur)) respSel.value = cur;
+  }
   refreshHistoricoFilters();
   refreshMrcFilters();
 }
@@ -420,6 +427,14 @@ function abrirModalDevolucao(id) {
     <div class="modal-equip-meta">Projeto: ${rec.projeto || '—'} · Técnico: ${rec.tecnico} · Saída: ${formatDate(rec.data_saida)}</div>
   `;
 
+  // Responsável pelo recebimento (somente cadastrados em Responsáveis)
+  const respSel = document.getElementById('dev-responsavel');
+  respSel.innerHTML = '<option value="">Selecione...</option>' +
+    responsaveis.slice().sort().map(r => `<option value="${r}">${r}</option>`).join('');
+  respSel.value = '';
+  document.getElementById('err-dev-responsavel').style.display = 'none';
+
+
   // Reset checklist
   ['limpo','funcionando','kit'].forEach(k => {
     document.querySelector(`input[name="chk-${k}"][value="sim"]`).checked = false;
@@ -495,6 +510,12 @@ async function confirmarDevolucao() {
   let valido = true;
   const rec = records.find(r => r.id === modalRecordId);
 
+  // ── Responsável pelo recebimento ──
+  const respRecebimento = document.getElementById('dev-responsavel').value;
+  const errResp = document.getElementById('err-dev-responsavel');
+  if (!respRecebimento) { errResp.style.display = 'block'; valido = false; }
+  else { errResp.style.display = 'none'; }
+
   // ── Checklist ──
   const checkItems = [
     { key: 'limpo', label: 'Equipamento Limpo' },
@@ -558,9 +579,10 @@ async function confirmarDevolucao() {
     await sbPatch('registros', `id=eq.${modalRecordId}`, {
       data_retorno: dataRetorno,
       ensaios: ensaiosTexto,
-      checklist: checklistStr
+      checklist: checklistStr,
+      responsavel_recebimento: respRecebimento
     });
-    if (rec) { rec.data_retorno = dataRetorno; rec.ensaios = ensaiosTexto; rec.checklist = checklistStr; }
+    if (rec) { rec.data_retorno = dataRetorno; rec.ensaios = ensaiosTexto; rec.checklist = checklistStr; rec.responsavel_recebimento = respRecebimento; }
     fecharModal();
     renderDashboard();
     filtrarEmUso();
@@ -585,7 +607,7 @@ function renderHistorico() {
   });
 
   const tbody = document.getElementById('hist-tbody');
-  if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="11"><div class="empty">Nenhum registro encontrado.</div></td></tr>'; return; }
+  if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="12"><div class="empty">Nenhum registro encontrado.</div></td></tr>'; return; }
 
   tbody.innerHTML = filtered.map(r => {
     const st   = getStatus(r);
@@ -608,6 +630,7 @@ function renderHistorico() {
       <td>${r.projeto || '—'}</td>
       <td>${r.tecnico}</td>
       <td>${r.issak || '—'}</td>
+      <td>${r.responsavel_recebimento || '—'}</td>
       <td>${formatDate(r.data_saida)}</td>
       <td>${formatDate(r.data_retorno)}</td>
       <td>${dias}</td>
@@ -621,7 +644,7 @@ function renderHistorico() {
 
 // ── Export CSV ─────────────────────────────────────────────────────────────────
 function exportarCSV() {
-  const header = ['Equipamento','Projeto','Técnico','Responsável','Saída','Devolução','Dias','Checklist','Ensaios','Status'];
+  const header = ['Equipamento','Projeto','Técnico','Responsável','Resp. Recebimento','Saída','Devolução','Dias','Checklist','Ensaios','Status'];
   const rows = records.map(r => {
     const dias = r.data_retorno ? diasEmUso(r.data_saida, r.data_retorno) : diasEmUso(r.data_saida);
     let chkResume = '';
@@ -631,7 +654,7 @@ function exportarCSV() {
         chkResume = Object.entries(chk).map(([k,v]) => `${k}:${v.resposta}${v.justificativa ? `(${v.justificativa})` : ''}`).join(' | ');
       } catch(e) {}
     }
-    return [r.equipamento, r.projeto||'', r.tecnico, r.issak||'', formatDate(r.data_saida), formatDate(r.data_retorno), dias, chkResume, r.ensaios||'', getStatus(r)]
+    return [r.equipamento, r.projeto||'', r.tecnico, r.issak||'', r.responsavel_recebimento||'', formatDate(r.data_saida), formatDate(r.data_retorno), dias, chkResume, r.ensaios||'', getStatus(r)]
       .map(v => `"${String(v).replace(/"/g,'""')}"`).join(',');
   });
   const csv  = [header.join(','), ...rows].join('\n');
