@@ -179,6 +179,45 @@ function refreshHistoricoFilters() {
   fe.value = curE; ft.value = curT;
 }
 
+// ── Histórico/MRC: ajuste de altura e voltar ao topo ────────────────────────────
+function ajustarAlturaTabela(wrapId) {
+  const wrap = document.getElementById(wrapId);
+  if (!wrap) return;
+  const top = wrap.getBoundingClientRect().top;
+  const altura = window.innerHeight - top - 16;
+  wrap.style.maxHeight = Math.max(altura, 220) + 'px';
+}
+function ajustarAlturaHistorico() { ajustarAlturaTabela('hist-table-wrap'); }
+function ajustarAlturaMrc() { ajustarAlturaTabela('mrc-table-wrap'); }
+
+function voltarAoTopo(wrapId) {
+  const wrap = document.getElementById(wrapId);
+  if (wrap) wrap.scrollTo({ top: 0, behavior: 'smooth' });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function voltarAoTopoHistorico() { voltarAoTopo('hist-table-wrap'); }
+function voltarAoTopoMrc() { voltarAoTopo('mrc-table-wrap'); }
+
+document.addEventListener('DOMContentLoaded', () => {
+  const pares = [
+    ['hist-table-wrap', 'btn-voltar-topo'],
+    ['mrc-table-wrap', 'btn-voltar-topo-mrc']
+  ];
+  pares.forEach(([wrapId, btnId]) => {
+    const wrap = document.getElementById(wrapId);
+    const btn = document.getElementById(btnId);
+    if (wrap && btn) {
+      wrap.addEventListener('scroll', () => {
+        btn.classList.toggle('show', wrap.scrollTop > 80);
+      });
+    }
+  });
+  window.addEventListener('resize', () => {
+    if (document.getElementById('sec-historico').classList.contains('active')) ajustarAlturaHistorico();
+    if (document.getElementById('sec-mrc').classList.contains('active')) ajustarAlturaMrc();
+  });
+});
+
 // ── Tab navigation ─────────────────────────────────────────────────────────────
 function renderActiveSection() {
   const active = document.querySelector('.section.active');
@@ -201,6 +240,8 @@ function setTab(tab) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.getElementById('sec-' + tab).classList.add('active');
   renderActiveSection();
+  if (tab === 'historico') requestAnimationFrame(ajustarAlturaHistorico);
+  if (tab === 'mrc') requestAnimationFrame(ajustarAlturaMrc);
 }
 
 // ── Load all ──────────────────────────────────────────────────────────────────
