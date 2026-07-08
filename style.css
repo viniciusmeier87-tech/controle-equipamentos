@@ -139,7 +139,31 @@ input.error-field, select.error-field, textarea.error-field { border-color: var(
 
 .table-wrap { overflow-x: auto; }
 .records-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 800px; }
-.records-table th { text-align: left; padding: 10px 14px; font-size: 11px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: .05em; background: var(--gray-50); border-bottom: 1px solid var(--gray-200); }
+.records-table th { text-align: left; padding: 10px 14px; font-size: 11px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: .05em; background: var(--gray-50); border-bottom: 1px solid var(--gray-200); position: sticky; top: 0; z-index: 1; }
+
+#hist-table-wrap { overflow-y: auto; }
+#mrc-table-wrap { overflow-y: auto; }
+
+.btn-voltar-topo {
+  display: none;
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--blue);
+  color: #fff;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  z-index: 50;
+  transition: background 0.15s, transform 0.15s;
+}
+.btn-voltar-topo:hover { background: var(--blue-dark); transform: translateY(-2px); }
+.btn-voltar-topo.show { display: flex; }
 .records-table td { padding: 10px 14px; border-bottom: 1px solid var(--gray-100); vertical-align: middle; color: var(--gray-700); max-width: 200px; }
 .records-table td.ensaios-cell { font-size: 12px; color: var(--gray-500); white-space: normal; word-break: break-word; }
 .records-table tr:last-child td { border-bottom: none; }
